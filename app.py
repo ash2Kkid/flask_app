@@ -23,4 +23,4 @@ if __name__ == "__main__":
 
 @app.route("/")
 def index():
-    return "Agent-Zero is live!", 200
+    return "Hello, Agent-Zero!", 200

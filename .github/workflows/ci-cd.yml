@@ -57,15 +57,30 @@ jobs:
       - name: Call Agent-Zero for deployment decision
         id: agent
         run: |
-          response=$(curl -s -X POST "$AGENT_ZERO_URL" \
+          echo "📡 Calling Agent-Zero at $AGENT_ZERO_URL"
+
+          http_code=$(curl -s -w "%{http_code}" -o response.json -X POST "$AGENT_ZERO_URL" \
             -H "Content-Type: application/json" \
             -d '{"test_status": "passed"}')
 
-          echo "Agent Response: $response"
+          echo "🌐 HTTP Status: $http_code"
+          cat response.json || echo "⚠️ No response body"
 
-          deploy=$(echo "$response" | jq -r '.deploy')
-          strategy=$(echo "$response" | jq -r '.strategy // empty')
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ Agent-Zero call failed with HTTP $http_code"
+            exit 1
+          fi
 
+          if ! jq . response.json > /dev/null 2>&1; then
+            echo "❌ Invalid JSON in Agent-Zero response"
+            cat response.json
+            exit 3
+          fi
+
+          deploy=$(jq -r '.deploy // "false"' response.json)
+          strategy=$(jq -r '.strategy // "none"' response.json)
+
+          echo "✅ Parsed: deploy=$deploy, strategy=$strategy"
           echo "deploy=$deploy" >> $GITHUB_OUTPUT
           echo "strategy=$strategy" >> $GITHUB_OUTPUT
         env:
@@ -79,7 +94,6 @@ jobs:
     steps:
       - name: Deploy using Agent-Zero strategy
         run: |
-          echo "✅ Deployment triggered."
+          echo "🚀 Deployment approved!"
           echo "Strategy: ${{ needs.agent-zero-decision.outputs.strategy }}"
-          # Replace this with your real deployment commands
-          echo "🚀 Deploying container..."
+          # Insert actual deployment commands here (e.g., docker push, ssh, kubectl)

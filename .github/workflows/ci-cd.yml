@@ -39,3 +39,35 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t my-flask-app .
+
+
+  agent-zero-decision:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request deployment decision from Agent-Zero
+        id: agent_zero
+        run: |
+          response=$(curl -s -X POST "$AGENT_ZERO_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"test_status": "passed"}')
+
+          echo "Agent Response: $response"
+          deploy=$(echo $response | jq -r '.deploy')
+          strategy=$(echo $response | jq -r '.strategy')
+
+          echo "deploy=$deploy" >> $GITHUB_OUTPUT
+          echo "strategy=$strategy" >> $GITHUB_OUTPUT
+
+        env:
+          AGENT_ZERO_URL: ${{ secrets.AGENT_ZERO_URL }}
+
+  deploy:
+    needs: agent-zero-decision
+    if: needs.agent-zero-decision.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy using Agent-Zero strategy
+        run: |
+          echo "Deploying using strategy: ${{ needs.agent-zero-decision.outputs.strategy }}"
+          # You can plug in canary/blue-green scripts here

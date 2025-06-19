@@ -1,20 +1,22 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Hello, Agent-Zero!"
-
-@app.route('/agent/deploy-decision', methods=['POST'])
+@app.route("/agent/deploy-decision", methods=["POST"])
 def deploy_decision():
-    data = request.json
-    test_status = data.get("test_status", "failed")
+    try:
+        data = request.get_json()
+        print("Received JSON:", data)  # Debug
 
-    if test_status == "passed":
-        return jsonify({"deploy": True, "strategy": "canary"})
-    else:
-        return jsonify({"deploy": False, "reason": "Tests failed"})
+        test_status = data.get("test_status", "failed")
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+        if test_status == "passed":
+            return jsonify({"deploy": True, "strategy": "canary"})
+        else:
+            return jsonify({"deploy": False, "strategy": "none"})
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)

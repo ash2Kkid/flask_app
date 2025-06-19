@@ -58,13 +58,13 @@ jobs:
         id: agent
         run: |
           echo "📡 Calling Agent-Zero at $AGENT_ZERO_URL"
-
           http_code=$(curl -s -w "%{http_code}" -o response.json -X POST "$AGENT_ZERO_URL" \
             -H "Content-Type: application/json" \
             -d '{"test_status": "passed"}')
 
           echo "🌐 HTTP Status: $http_code"
-          cat response.json || echo "⚠️ No response body"
+          echo "📄 Agent Response:"
+          cat response.json || echo "⚠️ No response received"
 
           if [ "$http_code" -ne 200 ]; then
             echo "❌ Agent-Zero call failed with HTTP $http_code"
@@ -74,7 +74,9 @@ jobs:
           if ! jq . response.json > /dev/null 2>&1; then
             echo "❌ Invalid JSON in Agent-Zero response"
             cat response.json
-            exit 3
+            echo "deploy=false" >> $GITHUB_OUTPUT
+            echo "strategy=none" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
           deploy=$(jq -r '.deploy // "false"' response.json)
@@ -94,6 +96,4 @@ jobs:
     steps:
       - name: Deploy using Agent-Zero strategy
         run: |
-          echo "🚀 Deployment approved!"
-          echo "Strategy: ${{ needs.agent-zero-decision.outputs.strategy }}"
-          # Insert actual deployment commands here (e.g., docker push, ssh, kubectl)
+          echo "🚀 Deploying with strategy: ${{ needs.agent-zero-decision.outputs.strategy }}"

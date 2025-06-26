@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: eu-west-2
+  AWS_REGION: ap-south-1
   ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
 
 jobs:

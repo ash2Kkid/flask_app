@@ -27,6 +27,11 @@ jobs:
         role-to-assume: ${{ secrets.AWS_DEPLOYMENT_ROLE_ARN }}
         role-session-name: GitHubActions-Build
         aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+          driver: docker-container
 
     - name: ECR Login
       id: ecr_login

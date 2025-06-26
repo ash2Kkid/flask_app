@@ -1,0 +1,60 @@
+name: Secure EC2 Deployment
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: AWS IAM authentication
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_DEPLOYMENT_ROLE_ARN }}
+        role-session-name: GitHubActions-Deploy
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: ECR login
+      id: ecr-auth
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build & push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: Dockerfile
+        tags: ${{ steps.ecr-auth.outputs.registry }}/{{ env.ECR_REPOSITORY }}:{{ github.sha }}
+        push: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: EC2 deployment
+      env:
+        SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "SSH_KEY" > ~/.ssh/tmp_key
+        chmod 600 ~/.ssh/tmp_key
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/tmp_key \
+          ec2-user@HOST /bin/bash << 'ENDDEPLOY'
+            echo "{{ steps.ecr-auth.outputs.docker_password }}" | docker login \
+              -u AWS --password-stdin {{ steps.ecr-auth.outputs.registry }}
+            docker pull {{ steps.ecr-auth.outputs.registry }}/{{ env.ECR_REPOSITORY }}:{{ github.sha }}
+            docker ps -q --filter name=app | xargs -r docker stop
+            docker rm app || true
+            docker run -d --restart always \
+              -p 80:5000 \
+              --name app \
+              {{ steps.ecr-auth.outputs.registry }}/{{ env.ECR_REPOSITORY }}:{{ github.sha }}
+        ENDDEPLOY

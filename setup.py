@@ -10,8 +10,8 @@ setup(
         "python-dotenv==1.0.1",
         "pytest==8.3.2"
     ],
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Ashwath P",
+    author_email="ashwathpremchandh@gmail.com",
     description="A Flask app integrated with Agent Zero",
-    python_requires=">=3.9"
+    python_requires=">=3.12"
 )
